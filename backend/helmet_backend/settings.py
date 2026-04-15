@@ -10,10 +10,23 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Load environment variables from .env file if present
 BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = BASE_DIR / '.env'
+if ENV_PATH.exists():
+    with ENV_PATH.open() as env_file:
+        for line in env_file:
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, value = line.split('=', 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
 
 
 # Quick-start development settings - unsuitable for production

@@ -11,7 +11,9 @@ class SensorDataSerializer(serializers.ModelSerializer):
     temperature = serializers.FloatField(required=False, default=0.0)
     gas_level = serializers.FloatField(required=False, default=0.0)
     heart_rate = serializers.IntegerField(required=False, default=0)
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
     
     class Meta:
         model = SensorData
-        fields = ['helmet', 'heart_rate', 'spo2', 'gas_level', 'temperature', 'humidity', 'motion', 'motion_x', 'motion_y', 'fall_detected']
+        fields = ['helmet', 'heart_rate', 'spo2', 'gas_level', 'temperature', 'humidity', 'motion', 'motion_x', 'motion_y', 'fall_detected', 'latitude', 'longitude']

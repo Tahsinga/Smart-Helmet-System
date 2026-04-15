@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live Map | Smart Helmet Monitoring</title>
+  <link href="{% static 'monitoring/vendor/bootstrap.min.css' %}" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'monitoring/vendor/fontawesome.min.css' %}" />
+  <link rel="stylesheet" href="{% static 'monitoring/vendor/leaflet.css' %}" />
+  <style>
+    body { background: #0b1120; color: #e2e8f0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; min-height: 100vh; }
+    .page-header { background: rgba(8, 15, 28, 0.94); border-bottom: 1px solid rgba(34, 197, 94, 0.2); }
+    .map-card { background: rgba(15, 25, 45, 0.95); border: 1px solid rgba(34, 197, 94, 0.22); }
+    .status-card { background: rgba(15, 25, 45, 0.92); border: 1px solid rgba(56, 189, 248, 0.18); }
+    .leaflet-container { border-radius: 12px; }
+    #map { height: 74vh; min-height: 520px; border-radius: 12px; }
+    .marker-label { font-size: 0.95rem; font-weight: 700; }
+    .status-pill { border-radius: 999px; padding: 0.25rem 0.65rem; font-size: 0.78rem; }
+    .status-pill.online { background: rgba(34, 197, 94, 0.18); color: #d1fae5; }
+    .status-pill.offline { background: rgba(248, 113, 113, 0.18); color: #fee2e2; }
+    a.btn-link { color: #a5b4fc; }
+    a.btn-link:hover { color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="container-fluid py-3">
+    <div class="page-header rounded-4 p-4 mb-4">
+      <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+        <div>
+          <h2 class="mb-1">Live Location Map</h2>
+          <p class="mb-0 text-muted">Realtime helmet GPS coordinates from incoming sensor data.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="/api/dashboard/" class="btn btn-outline-light btn-sm">
+            <i class="fas fa-chart-line me-1"></i> Dashboard
+          </a>
+          <a href="/logout/" class="btn btn-danger btn-sm">
+            <i class="fas fa-sign-out-alt me-1"></i> Logout
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="row gy-4">
+      <div class="col-xl-8">
+        <div class="map-card p-3 shadow-sm">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <span class="badge bg-success">Live</span>
+              <span class="text-muted ms-2">Refreshing every 2 seconds</span>
+            </div>
+            <div class="text-end text-muted"><small>Updated: <span id="lastUpdate">--</span></small></div>
+          </div>
+          <div id="map"></div>
+        </div>
+      </div>
+      <div class="col-xl-4">
+        <div class="status-card p-3 shadow-sm mb-4">
+          <h5 class="mb-3">Tracked Helmets</h5>
+          <div id="helmetList" class="list-group list-group-flush"></div>
+          <div id="emptyState" class="text-center text-muted py-4">Waiting for incoming sensor coordinates...</div>
+        </div>
+        <div class="status-card p-3 shadow-sm">
+          <h5 class="mb-3">Usage</h5>
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2"><i class="fas fa-map-marker-alt text-info me-2"></i>Live GPS coordinates from the helmet</li>
+            <li class="mb-2"><i class="fas fa-sync-alt text-info me-2"></i>Map refresh every 2 seconds</li>
+            <li><i class="fas fa-user-check text-info me-2"></i>Available for both admin and worker accounts</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{% static 'monitoring/vendor/leaflet.js' %}"></script>
+  <script>
+    const LIVE_URL = "{% url 'dashboard_live' %}";
+    const MARKERS = {};
+    const map = L.map('map', { scrollWheelZoom: true }).setView([-17.838158, 31.006824], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    window.addEventListener('load', () => {
+      setTimeout(() => map.invalidateSize(), 200);
+    });
+    window.addEventListener('resize', () => map.invalidateSize());
+
+    const helmetIcon = L.icon({
+      iconUrl: "{% static 'monitoring/marker-icon.svg' %}",
+      iconSize: [48, 62],
+      iconAnchor: [24, 62],
+      popupAnchor: [0, -54],
+      className: 'helmet-marker-icon'
+    });
+
+    function updateStatusPanel(items) {
+      const list = document.getElementById('helmetList');
+      const empty = document.getElementById('emptyState');
+      if (!items.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      list.innerHTML = items.map(item => {
+        const status = item.latitude !== null && item.longitude !== null ? 'online' : 'offline';
+        return `
+          <div class="list-group-item list-group-item-dark rounded-3 mb-2">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="marker-label">${item.device_id}</div>
+                <div class="text-muted small mt-1">${item.latitude !== null && item.longitude !== null ? `${item.latitude.toFixed(6)}, ${item.longitude.toFixed(6)}` : 'No GPS yet'}</div>
+              </div>
+              <span class="status-pill ${status}">${status.toUpperCase()}</span>
+            </div>
+            <div class="text-muted small mt-2">
+              HR: ${item.heart_rate ?? '--'} bpm · Gas: ${item.gas_level !== null ? item.gas_level.toFixed(1) : '--'} ppm · Temp: ${item.temperature !== null ? item.temperature.toFixed(1) : '--'}°C
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateMap(data) {
+      const now = new Date();
+      document.getElementById('lastUpdate').innerText = now.toLocaleTimeString();
+      const helmets = data.latest_by_helmet || [];
+      if (!helmets.length) {
+        return updateStatusPanel([]);
+      }
+      const valid = helmets.filter(h => h.latitude !== null && h.longitude !== null && !(h.latitude === 0 && h.longitude === 0));
+      if (valid.length) {
+        const bounds = [];
+        valid.forEach(item => {
+          const latlng = [item.latitude, item.longitude];
+          if (!MARKERS[item.device_id]) {
+            const marker = L.marker(latlng, { icon: helmetIcon, title: item.device_id }).addTo(map);
+            marker.bindPopup(`<strong>${item.device_id}</strong><br>HR: ${item.heart_rate || '--'} bpm<br>Gas: ${item.gas_level !== null ? item.gas_level.toFixed(1) : '--'} ppm`);
+            MARKERS[item.device_id] = marker;
+          } else {
+            MARKERS[item.device_id].setLatLng(latlng);
+            MARKERS[item.device_id].getPopup().setContent(`<strong>${item.device_id}</strong><br>HR: ${item.heart_rate || '--'} bpm<br>Gas: ${item.gas_level !== null ? item.gas_level.toFixed(1) : '--'} ppm`);
+          }
+          bounds.push(latlng);
+        });
+        if (bounds.length) {
+          map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+        }
+      }
+      updateStatusPanel(helmets);
+    }
+
+    async function refreshMapView() {
+      try {
+        const res = await fetch(LIVE_URL, { cache: 'no-store' });
+        const data = await res.json();
+        updateMap(data);
+      } catch (err) {
+        console.warn('Live map update failed', err);
+      }
+    }
+
+    refreshMapView();
+    setInterval(refreshMapView, 2000);
+  </script>
+</body>
+</html>

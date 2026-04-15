@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+{% load static %}
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <title>Smart Helmet Monitoring | Industrial Safety Suite</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link href="{% static 'monitoring/vendor/bootstrap.min.css' %}" rel="stylesheet"/>
+  <link rel="stylesheet" href="{% static 'monitoring/vendor/fontawesome.min.css' %}"/>
+  <link rel="stylesheet" href="{% static 'monitoring/vendor/leaflet.css' %}"/>
+  <script src="{% static 'monitoring/vendor/chart.umd.min.js' %}"></script>
   <style>
     * {
       margin: 0;
@@ -16,12 +17,8 @@
     }
 
     body {
-      background: radial-gradient(circle at 10% 20%, rgba(10, 20, 35, 0.96), rgba(2, 8, 20, 0.98)), 
-                  url('https://images.unsplash.com/photo-1581092335871-4d7e1e2b4f6c?q=80&w=2070&auto=format');
-      background-size: cover;
-      background-position: center;
-      background-attachment: fixed;
-      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 10% 20%, rgba(10, 20, 35, 0.96), rgba(2, 8, 20, 0.98));
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       color: #f1f5f9;
       height: 100vh;
       overflow: hidden;
@@ -139,6 +136,7 @@
 
     .sidebar {
       width: 128px;
+      height: 100vh;
       background: rgba(6, 12, 28, 0.9);
       backdrop-filter: blur(20px);
       border-right: 1px solid rgba(34, 197, 94, 0.3);
@@ -152,19 +150,24 @@
       margin: 8px auto;
       box-shadow: 0 6px 12px rgba(0,0,0,0.3);
       color: #cbd5e1;
-      transition: 0.2s;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: 2px solid rgba(34, 197, 94, 0.1);
     }
 
     .sidebar-icon:hover {
-      background: #22c55e;
-      color: #0f172a;
-      transform: translateY(-3px);
-      box-shadow: 0 12px 18px -6px #22c55e40;
+      background: linear-gradient(145deg, #22c55e, #16a34a);
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 12px 24px -8px #22c55e60;
+      border-color: rgba(34, 197, 94, 0.6);
     }
 
     .sidebar-icon.active {
-      background: #22c55e;
+      background: linear-gradient(145deg, #22c55e, #16a34a);
       color: #0a0f1c;
+      box-shadow: 0 12px 24px -8px #22c55e80;
+      border-color: #22c55e;
     }
 
     .sidebar-helmet-name span {
@@ -183,7 +186,7 @@
     }
 
     .chart-container, .spo2-chart-container {
-      height: 130px;
+      height: 200px;
       width: 100%;
     }
 
@@ -194,6 +197,54 @@
       box-shadow: 0 0 8px #22c55e;
       border-radius: 50%;
       animation: pulse 1.8s infinite;
+    }
+
+    .status-badge.inactive {
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+      animation: none;
+    }
+
+    .ai-analysis-panel {
+      position: fixed;
+      left: 18px;
+      bottom: 20px;
+      min-width: 260px;
+      max-width: 320px;
+      background: rgba(4, 20, 28, 0.94);
+      border: 1px solid rgba(34, 197, 94, 0.28);
+      box-shadow: 0 18px 30px rgba(0,0,0,0.35);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: none;
+      z-index: 10020;
+      color: #e2e8f0;
+    }
+
+    .ai-analysis-panel .ai-title {
+      font-size: 0.82rem;
+      color: #86efac;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .ai-analysis-panel .ai-text {
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: #cbd5e1;
+      white-space: pre-line;
+    }
+
+    .ai-analysis-panel .ai-small {
+      font-size: 0.76rem;
+    }
+
+    .sidebar-helmet-name span.active {
+      color: #a7f3d0;
+    }
+
+    .sidebar-helmet-name span.inactive {
+      color: #fecaca;
     }
 
     @keyframes pulse {
@@ -207,8 +258,145 @@
     }
 
     .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       background: rgba(0, 0, 0, 0.75);
       backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    .map-modal {
+      max-width: 1100px;
+      width: calc(100% - 40px);
+      max-height: 90vh;
+      overflow: hidden;
+    }
+    .map-modal .modal-header {
+      padding-bottom: 14px !important;
+      margin-bottom: 12px !important;
+    }
+    .map-modal #dashboardMapModal {
+      width: 100%;
+      height: 70vh;
+      min-height: 420px;
+      border-radius: 12px;
+      border: 1px solid rgba(34, 197, 94, 0.15);
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: rgba(15, 25, 45, 0.98);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      max-height: 85vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .modal-header {
+      border-bottom: 1px solid rgba(34, 197, 94, 0.15) !important;
+      padding-bottom: 16px !important;
+      margin-bottom: 16px !important;
+    }
+
+    .modal-header h2 {
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+
+    .btn-close {
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-close:hover {
+      opacity: 1 !important;
+      color: #22c55e;
+    }
+
+    .btn {
+      border: none;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+
+    .btn-secondary {
+      background: rgba(51, 65, 85, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #cbd5e1;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(51, 65, 85, 0.9);
+      border-color: rgba(148, 163, 184, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .btn-success {
+      background: linear-gradient(145deg, #22c55e, #16a34a);
+      color: white;
+      border: none;
+    }
+
+    .btn-success:hover {
+      background: linear-gradient(145deg, #16a34a, #15803d);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px -4px #22c55e40;
+    }
+
+    .system-item {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+
+    .system-item:hover {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.4);
+      transform: translateX(4px);
+    }
+
+    .system-item.active {
+      border-color: #22c55e;
+      background: rgba(34, 197, 94, 0.25);
+      box-shadow: 0 0 16px rgba(34, 197, 94, 0.35);
+    }
+
+    .form-control, .form-select {
+      background: rgba(15, 23, 42, 0.9) !important;
+      border: 1px solid rgba(34, 197, 94, 0.2) !important;
+      color: #f1f5f9 !important;
+      transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: #22c55e !important;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1) !important;
+      background: rgba(15, 23, 42, 0.95) !important;
+    }
+
+    .form-label {
+      color: #cbd5e1;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .table-dark tbody tr:hover {
+      background: rgba(34, 197, 94, 0.08);
+    }
+
+    .table td {
+      border-color: rgba(34, 197, 94, 0.1);
     }
 
     .system-item {
@@ -266,6 +454,26 @@
 <body>
   <a href="/logout/" class="logout-link position-fixed top-3 end-3 z-3 px-3 py-2 text-white text-decoration-none shadow-lg" style="top: 18px; right: 22px; background: #dc2626ee; border-radius: 40px;"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
 
+  <!-- DATA FEED PANEL (Live Data Log) -->
+  <div id="dataFeedPanel" class="position-fixed" style="bottom: 20px; left: 160px; width: 350px; height: auto; max-height: 280px; background: rgba(15, 25, 45, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 5px; box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.35); display: none; z-index: 1000; overflow: hidden; flex-direction: column;">
+    <div style="padding: 12px 16px; border-bottom: 1px solid rgba(34, 197, 94, 0.15); display: flex; justify-content: space-between; align-items: center;">
+      <div class="fw-bold text-success d-flex align-items-center gap-2">
+        <i class="fas fa-broadcast-tower"></i> Live Data Feed
+      </div>
+      <button class="btn btn-sm btn-secondary" onclick="toggleDataFeed()" style="padding: 2px 8px; font-size: 0.75rem;">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div id="dataFeedLog" style="flex: 1; padding: 12px; overflow-y: auto; font-size: 0.75rem; font-family: 'Courier New', monospace; color: #cbd5e1;">
+      <div class="text-secondary text-center py-2">Waiting for data...</div>
+    </div>
+  </div>
+
+  <div id="aiAnalysisPopup" class="ai-analysis-panel">
+    <div class="ai-title">AI Analysis</div>
+    <div id="aiAnalysisText" class="ai-text ai-small">Waiting for the next valid helmet reading...</div>
+  </div>
+
   <!-- Sidebar -->
   <div class="sidebar position-fixed start-0 top-0 d-flex flex-column align-items-center">
     <div class="sidebar-icon d-flex align-items-center justify-content-center rounded-3 mb-2" title="Select Systems" onclick="openSystemsModal()">
@@ -277,6 +485,9 @@
     </div>
     <div class="sidebar-icon d-flex align-items-center justify-content-center" title="History" onclick="openHistoryModal()">
       <i class="fas fa-history fa-lg"></i>
+    </div>
+    <div class="sidebar-icon d-flex align-items-center justify-content-center" title="Live Map" onclick="openMapModal()">
+      <i class="fas fa-map-marked-alt fa-lg"></i>
     </div>
     {% if is_admin %}
     <div class="sidebar-icon d-flex align-items-center justify-content-center" title="Create User" onclick="openCreateUserModal()">
@@ -290,6 +501,7 @@
 
   <!-- MAIN CONTENT: FITS EXACT SCREEN -->
   <div class="main-content">
+  
     <div class="dashboard-container">
       <!-- LEFT PANEL (details + SpO2) -->
       <div class="left-panel">
@@ -342,20 +554,13 @@
             <span id="timeValue" class="small text-secondary">--:--:--</span>
           </div>
         </div>
-
-        <div class="chart-card p-3">
-          <h4 class="mb-2 fs-6 fw-bold d-flex gap-2"><i class="fas fa-lungs text-purple-400"></i> SpO₂ Trend (%)</h4>
-          <div class="spo2-chart-container" style="height: 140px;">
-            <canvas id="spo2Chart"></canvas>
-          </div>
-        </div>
       </div>
 
       <!-- RIGHT PANEL: 4 live charts -->
       <div class="right-panel">
         <div class="charts-section" id="chartsSection">
           <div class="charts-grid">
-            <div class="chart-card p-3"><h4 class="fs-6 fw-bold d-flex gap-2 mb-2"><i class="fas fa-heartbeat text-danger"></i> Heart Rate (bpm)</h4><div class="chart-container"><canvas id="heartRateChart"></canvas></div></div>
+            <div class="chart-card p-3"><h4 class="fs-6 fw-bold d-flex flex-column gap-2 mb-2"><span><i class="fas fa-heartbeat text-danger"></i> Heart Rate + SpO₂</span></h4><div class="chart-container"><canvas id="heartRateChart"></canvas></div></div>
             <div class="chart-card p-3"><h4 class="fs-6 fw-bold d-flex gap-2 mb-2"><i class="fas fa-smog text-warning"></i> Gas Level (ppm)</h4><div class="chart-container"><canvas id="gasLevelChart"></canvas></div></div>
             <div class="chart-card p-3"><h4 class="fs-6 fw-bold d-flex gap-2 mb-2"><i class="fas fa-thermometer-half text-info"></i> Temperature (°C)</h4><div class="chart-container"><canvas id="temperatureChart"></canvas></div></div>
             <div class="chart-card p-3"><h4 class="fs-6 fw-bold d-flex gap-2 mb-2"><i class="fas fa-droplet text-cyan-400"></i> Humidity (%)</h4><div class="chart-container"><canvas id="humidityChart"></canvas></div></div>
@@ -366,27 +571,299 @@
   </div>
 
   <!-- MODALS -->
-  <div class="modal-overlay" id="systemsModal"><div class="modal-content p-4" style="max-width: 480px;"><div class="modal-header border-0 pb-2"><h2 class="fs-4 fw-bold">Select System</h2><button class="modal-close btn-close btn-close-white" onclick="closeSystemsModal()"></button></div><div class="search-box mb-3"><input type="text" id="systemSearch" placeholder="Search helmet ID..." class="w-100 p-2" onkeyup="filterSystems()"></div><div class="systems-list" style="max-height: 280px; overflow-y:auto;" id="systemsList"><div class="loading text-center py-4"><i class="fas fa-spinner fa-spin"></i> Loading...</div></div><div class="modal-buttons d-flex justify-content-end gap-2 mt-3"><button class="modal-btn secondary btn btn-secondary" onclick="closeSystemsModal()">Cancel</button><button class="modal-btn primary btn btn-success" onclick="confirmSystemSelection()">Load System</button></div></div></div>
-  <div class="modal-overlay" id="alertsModal"><div class="modal-content p-4" style="max-width: 550px;"><div class="modal-header border-0"><h2 class="fs-4 fw-bold"><i class="fas fa-bell me-2"></i>Live Alerts</h2><button class="modal-close btn-close btn-close-white" onclick="closeAlertsModal()"></button></div><div id="alertsContainer" style="max-height: 380px; overflow-y: auto;"></div><div class="mt-3 text-end"><button class="modal-btn secondary btn btn-secondary" onclick="closeAlertsModal()">Close</button></div></div></div>
-  <div class="modal-overlay" id="historyModal"><div class="modal-content p-4" style="max-width: 860px;"><div class="modal-header"><h2 class="fs-4 fw-bold">History · <span id="historySystemName" class="text-success">--</span></h2><button class="modal-close btn-close btn-close-white" onclick="closeHistoryModal()"></button></div><div style="max-height: 420px; overflow-y: auto;"><table class="table table-dark table-hover" style="font-size: 0.8rem;"><thead><tr><th>Time</th><th>HR</th><th>Gas(ppm)</th><th>Temp(°C)</th><th>Hum(%)</th><th>Battery</th></tr></thead><tbody id="historyTableBody"><tr><td colspan="6" class="text-center py-4">Loading...</td></tr></tbody></table></div><div class="d-flex justify-content-end mt-3"><button class="btn btn-secondary" onclick="closeHistoryModal()">Close</button></div></div></div>
-  {% if is_admin %}<div class="modal-overlay" id="createUserModal"><div class="modal-content p-4" style="max-width: 600px;"><div class="modal-header"><h2 class="fs-4 fw-bold">Create Worker</h2><button class="btn-close btn-close-white" onclick="closeCreateUserModal()"></button></div><div id="createUserAlert"></div><form id="createUserForm" method="post">{% csrf_token %}<div class="row g-3"><div class="col-md-6"><label class="form-label">Username</label><input type="text" name="username" class="form-control" required></div><div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div><div class="col-md-6"><label class="form-label">Worker name</label><input type="text" name="worker_name" class="form-control" required></div><div class="col-md-6"><label class="form-label">Employee ID</label><input type="text" name="employee_id" class="form-control" required></div><div class="col-md-6"><label class="form-label">Department</label><input type="text" name="department" class="form-control" required></div><div class="col-md-6"><label class="form-label">Assign helmet</label><select name="helmet" class="form-select"><option value="">-- optional --</option>{% for helmet in available_helmets %}<option value="{{ helmet.id }}">{{ helmet.device_id }}</option>{% endfor %}</select></div><div class="col-md-6"><label class="form-label">Password</label><input type="password" name="password1" class="form-control" required></div><div class="col-md-6"><label class="form-label">Confirm</label><input type="password" name="password2" class="form-control" required></div></div><div class="d-flex justify-content-end gap-2 mt-4"><button type="button" class="btn btn-secondary" onclick="closeCreateUserModal()">Cancel</button><button type="submit" class="btn btn-success">Create User</button></div></form></div></div>{% endif %}
+  <!-- SELECT HELMET MODAL -->
+  <div class="modal-overlay" id="systemsModal">
+    <div class="modal-content p-4" style="max-width: 500px; border-radius: 8px;">
+      <div class="modal-header border-0 pb-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center w-100">
+          <h2 class="fs-4 fw-bold mb-0">
+            <i class="fas fa-layer-group me-2 text-success"></i>Select Helmet
+          </h2>
+          <button class="btn-close btn-close-white" onclick="closeSystemsModal()" style="opacity: 0.7;"></button>
+        </div>
+      </div>
+      <div class="search-box mb-3">
+        <input type="text" id="systemSearch" placeholder="🔍 Search helmet ID..." class="w-100 p-2 form-control" onkeyup="filterSystems()">
+      </div>
+      <div class="systems-list" style="max-height: 280px; overflow-y:auto;" id="systemsList">
+        <div class="loading text-center py-4"><i class="fas fa-spinner fa-spin text-success"></i> Loading helmets...</div>
+      </div>
+      <div class="modal-buttons d-flex justify-content-end gap-2 mt-4">
+        <button class="btn btn-secondary" onclick="closeSystemsModal()">Cancel</button>
+        <button class="btn btn-success" onclick="confirmSystemSelection()">
+          <i class="fas fa-check me-2"></i>Load Helmet
+        </button>
+      </div>
+    </div>
+  </div>
 
+  <!-- ALERTS MODAL -->
+  <div class="modal-overlay" id="alertsModal">
+    <div class="modal-content p-4" style="max-width: 550px; border-radius: 8px;">
+      <div class="modal-header border-0 pb-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center w-100">
+          <h2 class="fs-4 fw-bold mb-0">
+            <i class="fas fa-bell me-2 text-warning"></i>Live Alerts
+          </h2>
+          <button class="btn-close btn-close-white" onclick="closeAlertsModal()" style="opacity: 0.7;"></button>
+        </div>
+      </div>
+      <div id="alertsContainer" style="max-height: 380px; overflow-y: auto;"></div>
+      <div class="mt-4 text-end">
+        <button class="btn btn-secondary" onclick="closeAlertsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP MODAL -->
+  <div class="modal-overlay" id="mapModal">
+    <div class="modal-content p-4 map-modal">
+      <div class="modal-header border-0 pb-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center w-100">
+          <h2 class="fs-4 fw-bold mb-0">
+            <i class="fas fa-map-marked-alt me-2 text-success"></i>Live Map
+          </h2>
+          <button class="btn-close btn-close-white" onclick="closeMapModal()" style="opacity: 0.7;"></button>
+        </div>
+      </div>
+      <div id="dashboardMapModal" style="height: 500px; border-radius: 12px;"></div>
+      <div class="mt-3 d-flex justify-content-between align-items-center text-muted small">
+        <div>Live coordinates from helmets with GPS data.</div>
+        <div>Updated: <span id="mapLastUpdate">--:--:--</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY MODAL -->
+  <div class="modal-overlay" id="historyModal">
+    <div class="modal-content p-4" style="max-width: 900px; border-radius: 8px;">
+      <div class="modal-header border-0 pb-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center w-100">
+          <h2 class="fs-4 fw-bold mb-0">
+            <i class="fas fa-history me-2 text-info"></i>History <span id="historySystemName" class="text-success">--</span>
+          </h2>
+          <button class="btn-close btn-close-white" onclick="closeHistoryModal()" style="opacity: 0.7;"></button>
+        </div>
+      </div>
+      <div style="max-height: 420px; overflow-y: auto;">
+        <table class="table table-dark table-hover mb-0" style="font-size: 0.85rem;">
+          <thead style="border-bottom: 2px solid rgba(34, 197, 94, 0.3);">
+            <tr>
+              <th class="text-success">Time</th>
+              <th class="text-danger">Heart Rate</th>
+              <th class="text-warning">Gas (ppm)</th>
+              <th class="text-info">Temp (°C)</th>
+              <th class="text-cyan">Humidity (%)</th>
+              <th class="text-success">Battery</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr><td colspan="6" class="text-center py-4"><i class="fas fa-spinner fa-spin text-success"></i> Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-end mt-4">
+        <button class="btn btn-secondary" onclick="closeHistoryModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREATE USER MODAL (Admin Only) -->
+  {% if is_admin %}
+  <div class="modal-overlay" id="createUserModal">
+    <div class="modal-content p-4" style="max-width: 600px; border-radius: 8px;">
+      <div class="modal-header border-0 pb-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center w-100">
+          <h2 class="fs-4 fw-bold mb-0">
+            <i class="fas fa-user-plus me-2 text-success"></i>Create Worker
+          </h2>
+          <button class="btn-close btn-close-white" onclick="closeCreateUserModal()" style="opacity: 0.7;"></button>
+        </div>
+      </div>
+      <div id="createUserAlert"></div>
+      <form id="createUserForm" method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Username</label>
+            <input type="text" name="username" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Worker Name</label>
+            <input type="text" name="worker_name" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Employee ID</label>
+            <input type="text" name="employee_id" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Department</label>
+            <input type="text" name="department" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Assign Helmet</label>
+            <select name="helmet" class="form-select">
+              <option value="">-- optional --</option>
+              {% for helmet in available_helmets %}
+              <option value="{{ helmet.id }}">{{ helmet.device_id }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Password</label>
+            <input type="password" name="password1" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Confirm Password</label>
+            <input type="password" name="password2" class="form-control" required>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <button type="button" class="btn btn-secondary" onclick="closeCreateUserModal()">Cancel</button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-plus me-2"></i>Create User
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <script src="{% static 'monitoring/vendor/leaflet.js' %}"></script>
   <script>
     const LIVE_URL = "/api/dashboard/live/";
     const ASSIGNED_HELMET_ID = "{{ assigned_helmet_id|escapejs }}";
     const IS_ADMIN = "{{ is_admin|yesno:'true,false' }}" === "true";
-    let refreshInterval, alertInterval;
+    let refreshInterval, alertInterval, mapRefreshInterval, aiAnalysisInterval;
     let charts = {};
     let selectedSystem = null;
+    let currentSelectedData = null;
     let chartData = { heartRate: [], spo2: [], gasLevel: [], temperature: [], humidity: [], timestamps: [] };
     const MAX_DATA_POINTS = 18;
+    let lastDataTimestamp = null;
+    let dataFeedVisible = false;
+
+    function updateSidebarStatus(isActive) {
+      const sidebarName = document.getElementById('sidebarHelmetName');
+      const statusDot = document.querySelector('.status-badge');
+      if(sidebarName) {
+        sidebarName.classList.toggle('active', isActive);
+        sidebarName.classList.toggle('inactive', !isActive);
+      }
+      if(statusDot) {
+        statusDot.classList.toggle('inactive', !isActive);
+        if(isActive) {
+          statusDot.style.background = '#22c55e';
+          statusDot.style.boxShadow = '0 0 8px #22c55e';
+          statusDot.style.animation = 'pulse 1.8s infinite';
+        } else {
+          statusDot.style.background = '#ef4444';
+          statusDot.style.boxShadow = '0 0 8px #ef4444';
+          statusDot.style.animation = 'none';
+        }
+      }
+    }
+
+    function toggleDataFeed() {
+      let panel = document.getElementById('dataFeedPanel');
+      dataFeedVisible = !dataFeedVisible;
+      panel.style.display = dataFeedVisible ? 'flex' : 'none';
+    }
+
+    function showAiAnalysis(message) {
+      const panel = document.getElementById('aiAnalysisPopup');
+      const text = document.getElementById('aiAnalysisText');
+      if (!panel || !text) return;
+      text.innerText = message || 'No analysis available.';
+      panel.style.display = 'block';
+    }
+
+    function hideAiAnalysis() {
+      const panel = document.getElementById('aiAnalysisPopup');
+      if (panel) panel.style.display = 'none';
+    }
+
+    function shouldSendAiAnalysis(data) {
+      return data && data.timestamp && isDataFresh(data.timestamp, 25);
+    }
+
+    function analyzeSelectedHelmetData() {
+      if (!currentSelectedData || !shouldSendAiAnalysis(currentSelectedData)) {
+        hideAiAnalysis();
+        return;
+      }
+
+      fetch("/api/dashboard/analyze/", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentSelectedData),
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result.analysis) {
+          showAiAnalysis(result.analysis);
+        } else if (result.error) {
+          console.warn('AI analysis error:', result.error);
+        }
+      })
+      .catch(err => {
+        console.warn('AI analysis failed', err);
+      });
+    }
+
+    function addDataFeedLog(helmetId, data) {
+      let log = document.getElementById('dataFeedLog');
+      if(!log) return;
+      
+      let timestamp = new Date().toLocaleTimeString();
+      let logEntry = document.createElement('div');
+      logEntry.style.cssText = 'padding: 8px; background: rgba(34, 197, 94, 0.1); border-left: 2px solid #22c55e; margin-bottom: 6px; border-radius: 3px;';
+      
+      let html = `<div style="color: #22c55e; font-weight: bold;">[${timestamp}] ${helmetId}</div>`;
+      html += `<div style="margin-top: 4px; color: #cbd5e1;">`;
+      
+      if(data.heart_rate) html += `<div>❤️ Heart Rate: ${data.heart_rate} bpm</div>`;
+      if(data.spo2) html += `<div>🫁 SpO₂: ${data.spo2}%</div>`;
+      if(data.gas_level) html += `<div>💨 Gas: ${data.gas_level.toFixed(1)} ppm</div>`;
+      if(data.temperature) html += `<div>🌡️ Temp: ${data.temperature.toFixed(1)}°C</div>`;
+      if(data.humidity) html += `<div>💧 Humidity: ${data.humidity.toFixed(1)}%</div>`;
+      if(data.motion) html += `<div>📍 Motion: ${data.motion.toFixed(2)} m/s²</div>`;
+      if(data.fall_detected) html += `<div style="color: #ef4444;">⚠️ FALL DETECTED!</div>`;
+      
+      html += `</div>`;
+      logEntry.innerHTML = html;
+      
+      log.insertBefore(logEntry, log.firstChild);
+      
+      // Keep only last 10 entries
+      while(log.children.length > 10) {
+        log.removeChild(log.lastChild);
+      }
+    }
 
     function getChartValue(val, minVal, maxVal) { let n = Number(val); if (isNaN(n)) return 0; if (minVal!==undefined && n<minVal) return 0; if (maxVal!==undefined && n>maxVal) return 0; return n; }
     function isDataFresh(ts, sec=30) { if(!ts) return false; let t = Date.parse(ts); return !isNaN(t) && (Date.now()-t) <= sec*1000; }
 
     function initializeCharts() {
-      const baseOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#cbd5e1' } }, x: { ticks: { color: '#94a3b8', maxRotation: 20, autoSkip: true } } } };
-      ['heartRateChart','gasLevelChart','temperatureChart','humidityChart','spo2Chart'].forEach(id => { let ctx = document.getElementById(id)?.getContext('2d'); if(ctx) charts[id.replace('Chart','')] = new Chart(ctx, { type:'line', data:{ labels:[], datasets:[{ data:[], borderColor: id==='heartRateChart'?'#ef4444':id==='gasLevelChart'?'#f97316':id==='temperatureChart'?'#3b82f6':id==='humidityChart'?'#06b6d4':'#a855f7', backgroundColor:'rgba(0,0,0,0)', borderWidth:2, tension:0.3, pointRadius:2, fill:false }] }, options: baseOpts }); });
+      const baseOpts = { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#cbd5e1' } }, x: { ticks: { color: '#94a3b8', maxRotation: 0, minRotation: 0, autoSkip: true } } } };
+      ['heartRateChart','gasLevelChart','temperatureChart','humidityChart','spo2Chart'].forEach(id => {
+        let ctx = document.getElementById(id)?.getContext('2d');
+        if(!ctx) return;
+        let datasets = [{ data: [], borderColor: id==='heartRateChart'?'#ef4444':id==='gasLevelChart'?'#f97316':id==='temperatureChart'?'#3b82f6':id==='humidityChart'?'#06b6d4':'#a855f7', backgroundColor: id==='heartRateChart' ? 'rgba(239, 68, 68, 0.15)' : id==='gasLevelChart' ? 'rgba(249, 115, 22, 0.15)' : id==='temperatureChart' ? 'rgba(59, 130, 246, 0.15)' : id==='humidityChart' ? 'rgba(6, 182, 212, 0.15)' : 'rgba(168, 85, 247, 0.15)', borderWidth: 1.5, tension: 0.3, pointRadius: 1.5, fill: true, label: id==='heartRateChart'?'Heart Rate (bpm)': id==='gasLevelChart'?'Gas Level': id==='temperatureChart'?'Temperature': id==='humidityChart'?'Humidity': 'SpO₂' }];
+        let options = baseOpts;
+        if(id === 'heartRateChart') {
+          datasets = [
+            { label: 'Heart Rate (bpm)', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1.5, tension: 0.3, pointRadius: 1.5, fill: true },
+            { label: 'SpO₂ (%)', data: [], borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.15)', borderWidth: 1.5, tension: 0.3, pointRadius: 1.5, fill: true }
+          ];
+          options = { ...baseOpts, plugins: { legend: { display: true, position: 'top', labels: { color: '#cbd5e1' } } } };
+        }
+        charts[id.replace('Chart','')] = new Chart(ctx, { type: 'line', data: { labels: [], datasets }, options });
+      });
     }
 
     function updateCharts(helmet) {
@@ -398,11 +875,30 @@
       chartData.temperature.push(getChartValue(helmet.temperature,-20,80));
       chartData.humidity.push(getChartValue(helmet.humidity,0,100));
       if(chartData.timestamps.length > MAX_DATA_POINTS) { chartData.timestamps.shift(); chartData.heartRate.shift(); chartData.spo2.shift(); chartData.gasLevel.shift(); chartData.temperature.shift(); chartData.humidity.shift(); }
-      if(charts.heartRate) { charts.heartRate.data.labels = chartData.timestamps; charts.heartRate.data.datasets[0].data = chartData.heartRate; charts.heartRate.update(); }
+      if(charts.heartRate) {
+        charts.heartRate.data.labels = chartData.timestamps;
+        charts.heartRate.data.datasets[0].data = chartData.heartRate;
+        charts.heartRate.data.datasets[1].data = chartData.spo2;
+        charts.heartRate.update();
+      }
       if(charts.gasLevel) { charts.gasLevel.data.labels = chartData.timestamps; charts.gasLevel.data.datasets[0].data = chartData.gasLevel; charts.gasLevel.update(); }
       if(charts.temperature) { charts.temperature.data.labels = chartData.timestamps; charts.temperature.data.datasets[0].data = chartData.temperature; charts.temperature.update(); }
       if(charts.humidity) { charts.humidity.data.labels = chartData.timestamps; charts.humidity.data.datasets[0].data = chartData.humidity; charts.humidity.update(); }
       if(charts.spo2) { charts.spo2.data.labels = chartData.timestamps; charts.spo2.data.datasets[0].data = chartData.spo2; charts.spo2.update(); }
+    }
+
+    function formatHelmetPopup(item) {
+      if(!item) return '';
+      return `<strong>${item.device_id}</strong><br>
+        HR: ${item.heart_rate || '--'} bpm<br>
+        SpO₂: ${item.spo2 !== null && item.spo2 !== undefined ? Number(item.spo2).toFixed(1) + '%' : '--'}<br>
+        Gas: ${item.gas_level !== null && item.gas_level !== undefined ? Number(item.gas_level).toFixed(1) + ' ppm' : '--'}<br>
+        Temp: ${item.temperature !== null && item.temperature !== undefined ? Number(item.temperature).toFixed(1) + '°C' : '--'}<br>
+        Humidity: ${item.humidity !== null && item.humidity !== undefined ? Number(item.humidity).toFixed(1) + '%' : '--'}<br>
+        Motion: ${item.motion !== null && item.motion !== undefined ? Number(item.motion).toFixed(2) + ' m/s²' : '--'}<br>
+        Battery: ${item.battery_level !== null && item.battery_level !== undefined ? item.battery_level + '%' : '--'}<br>
+        Fall: ${item.fall_detected ? 'YES' : 'NO'}<br>
+        Time: ${item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : '--'}`;
     }
 
     function updateDashboard() {
@@ -413,6 +909,11 @@
         if(!selectedSystem) { let pref = ASSIGNED_HELMET_ID || data.latest_by_helmet[0].device_id; selectedSystem = data.latest_by_helmet.find(h=>h.device_id===pref)?.device_id || data.latest_by_helmet[0].device_id; }
         let selected = data.latest_by_helmet.find(h=>h.device_id===selectedSystem);
         let fresh = selected && isDataFresh(selected.timestamp);
+        updateSidebarStatus(fresh);
+
+        // CHECK IF DATA IS NEW
+        let isNewData = selected && selected.timestamp && (!lastDataTimestamp || new Date(selected.timestamp) > new Date(lastDataTimestamp));
+        
         if(!fresh && selected) { selected = { ...selected, heart_rate:0, spo2:0, gas_level:0, temperature:0, humidity:0, motion:0, fall_detected:false, battery_level:0 }; }
         if(selected) {
           document.getElementById('helmetId').innerText = selected.device_id;
@@ -429,8 +930,66 @@
           if(sidebarName) sidebarName.innerText = selected.device_id;
           card.style.display = 'block';
           updateCharts(selected);
-        } else { card.style.display = 'none'; }
+          currentSelectedData = {
+            device_id: selected.device_id,
+            heart_rate: selected.heart_rate,
+            spo2: selected.spo2,
+            gas_level: selected.gas_level,
+            temperature: selected.temperature,
+            humidity: selected.humidity,
+            motion: selected.motion,
+            fall_detected: selected.fall_detected,
+            battery_level: selected.battery_level,
+            latitude: selected.latitude,
+            longitude: selected.longitude,
+            timestamp: selected.timestamp,
+          };
+          
+          // SHOW TOAST & LOG WHEN NEW DATA ARRIVES
+          if(isNewData && fresh) {
+            lastDataTimestamp = selected.timestamp;
+            addDataFeedLog(selected.device_id, selected);
+          }
+        } else {
+          card.style.display = 'none';
+          updateSidebarStatus(false);
+          currentSelectedData = null;
+        }
       }).catch(e=>console.warn);
+    }
+
+    function loadMapData() {
+      fetch(LIVE_URL, { cache: 'no-store' }).then(res => res.json()).then(data => {
+        if (!window.dashboardMap) return;
+        const helmets = data.latest_by_helmet || [];
+        const selectedHelmet = selectedSystem ? helmets.find(h => h.device_id === selectedSystem) : null;
+        const targets = selectedHelmet ? [selectedHelmet] : helmets;
+
+        Object.values(window.dashboardMarkers || {}).forEach(marker => window.dashboardMap.removeLayer(marker));
+        window.dashboardMarkers = {};
+
+        const coords = [];
+        targets.forEach(item => {
+          if (item.latitude === null || item.longitude === null || (item.latitude === 0 && item.longitude === 0)) return;
+          const latlng = [item.latitude, item.longitude];
+          coords.push(latlng);
+          const marker = L.marker(latlng).addTo(window.dashboardMap).bindPopup(formatHelmetPopup(item));
+          window.dashboardMarkers[item.device_id] = marker;
+          if (item.device_id === selectedSystem) {
+            marker.openPopup();
+          }
+        });
+
+        if (coords.length) {
+          if (coords.length === 1) {
+            window.dashboardMap.setView(coords[0], 16);
+          } else if (selectedHelmet && coords.length === 1) {
+            window.dashboardMap.setView(coords[0], 16);
+          } else {
+            window.dashboardMap.fitBounds(coords, { padding:[48,48], maxZoom: 16 });
+          }
+        }
+      }).catch(() => {});
     }
 
     function updateAlertBadge() {
@@ -480,16 +1039,73 @@
     function closeSystemsModal(){ document.getElementById('systemsModal').classList.remove('active'); }
     function openAlertsModal(){ document.getElementById('alertsModal').classList.add('active'); loadRealAlerts(); }
     function closeAlertsModal(){ document.getElementById('alertsModal').classList.remove('active'); }
+    function openMapModal(){
+      document.getElementById('mapModal').classList.add('active');
+      if (!window.dashboardModalMap) initDashboardModalMap();
+      setTimeout(() => {
+        if (window.dashboardModalMap) window.dashboardModalMap.invalidateSize();
+        loadModalMapData();
+      }, 100);
+      if (mapRefreshInterval) clearInterval(mapRefreshInterval);
+      mapRefreshInterval = setInterval(loadModalMapData, 2000);
+    }
+    function closeMapModal(){
+      document.getElementById('mapModal').classList.remove('active');
+      if (mapRefreshInterval) {
+        clearInterval(mapRefreshInterval);
+        mapRefreshInterval = null;
+      }
+    }
     function openHistoryModal(){ document.getElementById('historyModal').classList.add('active'); document.getElementById('historySystemName').innerText=selectedSystem||'--'; loadHistoryData(); }
     function closeHistoryModal(){ document.getElementById('historyModal').classList.remove('active'); }
     function filterSystems(){ let val=document.getElementById('systemSearch')?.value.toLowerCase()||''; document.querySelectorAll('.system-item').forEach(i=>{ let name=i.querySelector('.fw-bold')?.innerText.toLowerCase(); if(name.includes(val)) i.style.display='flex'; else i.style.display='none'; }); }
     function confirmSystemSelection(){ if(selectedSystem){ document.getElementById('helmetId').innerText=selectedSystem; chartData={ heartRate:[], spo2:[], gasLevel:[], temperature:[], humidity:[], timestamps:[] }; updateDashboard(); closeSystemsModal(); } }
     function openCreateUserModal(){ document.getElementById('createUserModal')?.classList.add('active'); }
     function closeCreateUserModal(){ document.getElementById('createUserModal')?.classList.remove('active'); document.getElementById('createUserForm')?.reset(); }
-    document.addEventListener('click',(e)=>{ if(e.target.classList.contains('modal-overlay')){ closeSystemsModal(); closeAlertsModal(); closeHistoryModal(); closeCreateUserModal(); } });
+    function initDashboardModalMap(){
+      const defaultLatLng = [-17.838158, 31.006824];
+      window.dashboardModalMap = L.map('dashboardMapModal', { scrollWheelZoom: true }).setView(defaultLatLng, 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(window.dashboardModalMap);
+      window.dashboardModalMarkers = {};
+    }
+    function loadModalMapData(){
+      fetch(LIVE_URL, { cache: 'no-store' }).then(res=>res.json()).then(data=>{
+        const helmets = data.latest_by_helmet || [];
+        const updated = new Date().toLocaleTimeString();
+        document.getElementById('mapLastUpdate').innerText = updated;
+        if(!window.dashboardModalMap) return;
+        const coords = [];
+        const selectedHelmet = selectedSystem ? helmets.find(h => h.device_id === selectedSystem) : null;
+        helmets.forEach(item=>{
+          if(item.latitude === null || item.longitude === null || (item.latitude === 0 && item.longitude === 0)) return;
+          const latlng = [item.latitude, item.longitude];
+          coords.push(latlng);
+          if(!window.dashboardModalMarkers[item.device_id]){
+            window.dashboardModalMarkers[item.device_id] = L.marker(latlng).addTo(window.dashboardModalMap).bindPopup(formatHelmetPopup(item));
+          } else {
+            window.dashboardModalMarkers[item.device_id].setLatLng(latlng);
+            window.dashboardModalMarkers[item.device_id].getPopup().setContent(formatHelmetPopup(item));
+          }
+          if(item.device_id === selectedSystem) {
+            window.dashboardModalMarkers[item.device_id].openPopup();
+          }
+        });
+        if(coords.length){
+          if(selectedHelmet) {
+            window.dashboardModalMap.setView([selectedHelmet.latitude, selectedHelmet.longitude], 16);
+          } else {
+            window.dashboardModalMap.fitBounds(coords, { padding:[48,48], maxZoom: 16 });
+          }
+        }
+      }).catch(()=>{});
+    }
+    document.addEventListener('click',(e)=>{ if(e.target.classList.contains('modal-overlay')){ closeSystemsModal(); closeAlertsModal(); closeHistoryModal(); closeCreateUserModal(); closeMapModal(); } });
     if(document.getElementById('createUserForm')) document.getElementById('createUserForm').addEventListener('submit',async(e)=>{ e.preventDefault(); let form=e.target; let fd=new FormData(form); try{ let res=await fetch("{% url 'create_user' %}",{method:'POST',body:fd,headers:{'X-Requested-With':'XMLHttpRequest'}}); let data=await res.json(); document.getElementById('createUserAlert').innerHTML=`<div class="alert alert-${res.ok?'success':'danger'}">${res.ok?data.message:'Error creating user'}</div>`; if(res.ok) form.reset(); }catch(err){ document.getElementById('createUserAlert').innerHTML='<div class="alert alert-danger">Network error</div>'; } });
 
-    initializeCharts(); updateDashboard(); updateAlertBadge(); refreshInterval=setInterval(updateDashboard,1500); alertInterval=setInterval(updateAlertBadge,3000);
+    initializeCharts(); updateDashboard(); updateAlertBadge();
+    refreshInterval = setInterval(updateDashboard,1500);
+    alertInterval = setInterval(updateAlertBadge,3000);
+    aiAnalysisInterval = setInterval(analyzeSelectedHelmetData, 5000);
     window.selectSystem = (id,el)=>{ selectedSystem=id; document.querySelectorAll('.system-item').forEach(i=>i.classList.remove('active')); el.classList.add('active'); };
   </script>
 </body>

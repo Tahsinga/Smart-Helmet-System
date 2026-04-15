@@ -1,3 +1,8 @@
+import json
+import os
+import urllib.request
+import urllib.error
+
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import HelmetDevice, SensorData, Alert, Worker
@@ -131,6 +136,13 @@ def dashboard_view(request):
     })
 
 
+@login_required
+def dashboard_map_view(request):
+    return render(request, "monitoring/dashboard_map.html", {
+        'is_admin': request.user.is_staff,
+    })
+
+
 @require_GET
 @login_required
 def dashboard_live(request):
@@ -155,6 +167,8 @@ def dashboard_live(request):
         latest_motion_x=Subquery(latest_sensor_data.values('motion_x')[:1]),
         latest_motion_y=Subquery(latest_sensor_data.values('motion_y')[:1]),
         latest_fall_detected=Subquery(latest_sensor_data.values('fall_detected')[:1]),
+        latest_latitude=Subquery(latest_sensor_data.values('latitude')[:1]),
+        latest_longitude=Subquery(latest_sensor_data.values('longitude')[:1]),
         latest_timestamp=Subquery(latest_sensor_data.values('timestamp')[:1])
     ).filter(
         latest_timestamp__isnull=False  # Only include helmets with sensor data
@@ -186,12 +200,95 @@ def dashboard_live(request):
             "motion_x": motion_x,
             "motion_y": motion_y,
             "fall_detected": bool(helmet.latest_fall_detected),
+            "latitude": float(helmet.latest_latitude) if helmet.latest_latitude is not None else None,
+            "longitude": float(helmet.latest_longitude) if helmet.latest_longitude is not None else None,
             "timestamp": helmet.latest_timestamp.isoformat() if helmet.latest_timestamp else None,
         })
 
     return JsonResponse({
         "latest_by_helmet": latest_by_helmet,
     })
+
+
+@csrf_exempt
+@login_required
+def dashboard_ai_analyze(request):
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        return JsonResponse({"error": "OpenAI API key not configured. Set OPENAI_API_KEY on the server."}, status=500)
+
+    device_id = data.get('device_id')
+    if not device_id:
+        return JsonResponse({"error": "device_id is required"}, status=400)
+
+    heart_rate = data.get('heart_rate')
+    spo2 = data.get('spo2')
+    gas_level = data.get('gas_level')
+    temperature = data.get('temperature')
+    humidity = data.get('humidity')
+    motion = data.get('motion')
+    fall_detected = data.get('fall_detected')
+    battery_level = data.get('battery_level')
+    timestamp = data.get('timestamp')
+
+    prompt = (
+        f"You are a safety AI assistant for an industrial helmet monitoring system. "
+        f"Analyze the latest reading for helmet {device_id}. "
+        f"The device is considered online if it sent data recently, otherwise do not analyze. "
+        f"For acceleration/motion, the stable value is around 5; a lower value can indicate a fall. "
+        f"Summarize the current state in a short sentence and recommend any action if needed. "
+        f"Use no more than 2 short sentences.\n\n"
+        f"Sensor values:\n"
+        f"Heart rate: {heart_rate}\n"
+        f"SpO₂: {spo2}\n"
+        f"Gas level: {gas_level}\n"
+        f"Temperature: {temperature}\n"
+        f"Humidity: {humidity}\n"
+        f"Motion: {motion}\n"
+        f"Fall detected: {fall_detected}\n"
+        f"Battery: {battery_level}\n"
+        f"Timestamp: {timestamp}\n"
+        f"If there is a fall or abnormal reading, clearly say so."
+    )
+
+    payload = json.dumps({
+        "model": "gpt-3.5-turbo",
+        "temperature": 0.25,
+        "max_tokens": 140,
+        "messages": [
+            {"role": "system", "content": "You are a concise safety assistant."},
+            {"role": "user", "content": prompt}
+        ]
+    }).encode('utf-8')
+
+    request_obj = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST"
+    )
+
+    try:
+        with urllib.request.urlopen(request_obj, timeout=20) as resp:
+            response_data = json.loads(resp.read().decode('utf-8'))
+            analysis = response_data.get('choices', [])[0].get('message', {}).get('content', '') if response_data.get('choices') else ''
+            return JsonResponse({"analysis": analysis.strip()})
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode('utf-8') if exc else ''
+        return JsonResponse({"error": "OpenAI API request failed", "details": error_body}, status=502)
+    except Exception as exc:
+        return JsonResponse({"error": "AI analysis failed", "details": str(exc)}, status=500)
 
 
 @require_GET
