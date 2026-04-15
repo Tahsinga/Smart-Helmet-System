@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Workers - Smart Helmet</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    body { font-family: 'Roboto', sans-serif; }
+    input, select, textarea, .form-control { font-family: 'Roboto', sans-serif; font-size: 0.9rem; }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3 class="m-0">Workers & Helmets</h3>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="/api/dashboard/">Back to Dashboard</a>
+        <a class="btn btn-outline-danger" href="/logout/">Logout</a>
+      </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Worker</th>
+                <th>Employee ID</th>
+                <th>Helmet Device</th>
+                <th>Battery</th>
+                <th>History</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in helmets %}
+              <tr>
+                <td>{{ h.worker.name }}</td>
+                <td>{{ h.worker.employee_id }}</td>
+                <td>{{ h.device_id }}</td>
+                <td>{{ h.battery_level }}%</td>
+                <td>
+                  <a class="btn btn-sm btn-primary" href="/api/workers/{{ h.device_id }}/">
+                    View History
+                  </a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="text-muted">No helmets registered yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="small text-muted mt-2">
+          Tip: Make sure the simulator device_id matches a registered HelmetDevice (e.g., HELMET001).
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

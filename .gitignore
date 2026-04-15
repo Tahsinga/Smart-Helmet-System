@@ -1,0 +1,31 @@
+# Virtual environments
+venv/
+backend/venv/
+.env
+.env.*
+.envrc
+
+# Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django / Python DB files
+*.sqlite3
+*.db
+*.sqlite
+
+# Django static files
+staticfiles/
+media/
+
+# IDE files
+.vscode/
+*.code-workspace
+
+# Logs
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
